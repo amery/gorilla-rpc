@@ -49,7 +49,7 @@ type serviceMap struct {
 }
 
 // register adds a new service using reflection to extract its methods.
-func (m *serviceMap) register(rcvr interface{}, name string) error {
+func (m *serviceMap) register(rcvr interface{}, name string, infer bool) error {
 	// Setup service.
 	s := &service{
 		name:     name,
@@ -57,15 +57,17 @@ func (m *serviceMap) register(rcvr interface{}, name string) error {
 		rcvrType: reflect.TypeOf(rcvr),
 		methods:  make(map[string]*serviceMethod),
 	}
-	if name == "" {
-		s.name = reflect.Indirect(s.rcvr).Type().Name()
-		if !isExported(s.name) {
-			return fmt.Errorf("rpc: type %q is not exported", s.name)
+	if infer {
+		if name == "" {
+			s.name = reflect.Indirect(s.rcvr).Type().Name()
+			if !isExported(s.name) {
+				return fmt.Errorf("rpc: type %q is not exported", s.name)
+			}
 		}
-	}
-	if s.name == "" {
-		return fmt.Errorf("rpc: no service name for type %q",
-			s.rcvrType.String())
+		if s.name == "" {
+			return fmt.Errorf("rpc: no service name for type %q",
+				s.rcvrType.String())
+		}
 	}
 	// Setup methods.
 	for i := 0; i < s.rcvrType.NumMethod(); i++ {
@@ -128,7 +130,9 @@ func (m *serviceMap) register(rcvr interface{}, name string) error {
 // The method name uses a dotted notation as in "Service.Method".
 func (m *serviceMap) get(method string) (*service, *serviceMethod, error) {
 	parts := strings.Split(method, ".")
-	if len(parts) != 2 {
+	if len(parts) == 1 {
+		parts = []string{"", parts[0]}
+	} else if len(parts) != 2 {
 		err := fmt.Errorf("rpc: service/method request ill-formed: %q", method)
 		return nil, nil, err
 	}
