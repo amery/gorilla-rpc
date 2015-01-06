@@ -49,7 +49,8 @@ type serviceMap struct {
 }
 
 // register adds a new service using reflection to extract its methods.
-func (m *serviceMap) register(rcvr interface{}, name string, infer bool) error {
+func (m *serviceMap) register(rcvr interface{}, name string, http bool, infer bool) error {
+	var n int
 	// Setup service.
 	s := &service{
 		name:     name,
@@ -69,6 +70,13 @@ func (m *serviceMap) register(rcvr interface{}, name string, infer bool) error {
 				s.rcvrType.String())
 		}
 	}
+	if http {
+		// Method needs four ins: receiver, *http.Request, *args, *reply.
+		n = 4
+	} else {
+		// Method needs three ins: receiver, *args, *reply.
+		n = 3
+	}
 	// Setup methods.
 	for i := 0; i < s.rcvrType.NumMethod(); i++ {
 		method := s.rcvrType.Method(i)
@@ -77,22 +85,24 @@ func (m *serviceMap) register(rcvr interface{}, name string, infer bool) error {
 		if method.PkgPath != "" {
 			continue
 		}
-		// Method needs four ins: receiver, *http.Request, *args, *reply.
-		if mtype.NumIn() != 4 {
+		// Method needs the right number of arguments
+		if mtype.NumIn() != n {
 			continue
 		}
-		// First argument must be a pointer and must be http.Request.
-		reqType := mtype.In(1)
-		if reqType.Kind() != reflect.Ptr || reqType.Elem() != typeOfRequest {
-			continue
+		if http {
+			// First argument must be a pointer and must be http.Request.
+			reqType := mtype.In(1)
+			if reqType.Kind() != reflect.Ptr || reqType.Elem() != typeOfRequest {
+				continue
+			}
 		}
 		// Second argument must be a pointer and must be exported.
-		args := mtype.In(2)
+		args := mtype.In(n - 2)
 		if args.Kind() != reflect.Ptr || !isExportedOrBuiltin(args) {
 			continue
 		}
 		// Third argument must be a pointer and must be exported.
-		reply := mtype.In(3)
+		reply := mtype.In(n - 1)
 		if reply.Kind() != reflect.Ptr || !isExportedOrBuiltin(reply) {
 			continue
 		}

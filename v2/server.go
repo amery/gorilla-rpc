@@ -78,12 +78,12 @@ func (s *Server) RegisterCodec(codec Codec, contentType string) {
 //
 // All other methods are ignored.
 func (s *Server) RegisterService(receiver interface{}, name string) error {
-	return s.services.register(receiver, name, true)
+	return s.services.register(receiver, name, true, true)
 }
 
 // RegisterUnnamedService adds all methods as RegisterService does but without service name
 func (s *Server) RegisterUnnamedService(receiver interface{}) error {
-	return s.services.register(receiver, "", false)
+	return s.services.register(receiver, "", true, false)
 }
 
 // HasMethod returns true if the given method is registered.
